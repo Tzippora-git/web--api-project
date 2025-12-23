@@ -16,6 +16,14 @@ namespace WebApplication2.Controllers
         [HttpGet] // פתוח לכולם
         public IActionResult GetAll() => Ok(_donorBll.GetAllDonors());
 
+        // WebApplication2/Controllers/DonorController.cs
+        [HttpGet("search")] // פתוח לכולם
+        public IActionResult Search([FromQuery] string? name, [FromQuery] string? email, [FromQuery] string? giftName)
+        {
+            var results = _donorBll.GetDonorsByFilter(name, email, giftName);
+            return Ok(results);
+        }
+
         [Authorize(Roles = "Manager")] // רק למנהל
         [HttpPost]
         public IActionResult Add([FromBody] donorDTO donor)

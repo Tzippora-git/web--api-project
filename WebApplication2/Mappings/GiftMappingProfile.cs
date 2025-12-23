@@ -24,6 +24,10 @@ namespace WebApplication2.Mappings // מרחב למיפויים
             CreateMap<UserDto, UserModel>().ReverseMap(); // מיפוי דו-כיווני למשתמש
 
             CreateMap<UserDto, UserModel>().ReverseMap(); // שורה כפולה (ניתן להסיר כפילות)
+
+            // בתוך GiftMappingProfile.cs
+            CreateMap<DonorModel, donorDTO>().ReverseMap();
+            CreateMap<GiftModel, GiftDTO>().ReverseMap();
         } // סיום בנאי
     } // סיום מחלקה
 } // סיום namespace
