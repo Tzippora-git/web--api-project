@@ -1,4 +1,5 @@
 ﻿using WebApplication2.Models;
+using WebApplication2.Models.DTO;
 
 namespace WebApplication2.DAL
 {
@@ -18,7 +19,18 @@ namespace WebApplication2.DAL
             _context.SaveChanges(); // שומר את ההזמנה ואת כל ה-OrderItems שקשורים אליה
             return order.Id;
         }
-
+        public List<PurchaserDetailsDto> GetPurchasersByGiftId(int giftId)
+        {
+            return _context.OrderTicket
+                .Where(t => t.GiftId == giftId)
+                .Select(t => new PurchaserDetailsDto
+                {
+                    CustomerName = t.Order.User.Name, // Use Name property instead of FirstName + LastName
+                    Email = t.Order.User.Email,
+                    TicketsCount = t.Quantity
+                })
+                .ToList();
+        }
         public List<OrderModel> GetUserOrders(int userId)
         {
             return _context.Orders

@@ -7,6 +7,7 @@ namespace WebApplication2.BLL
     {
         // יצירת הזמנה חדשה והחזרת ה-ID שלה
         int PlaceOrder(OrderDTO orderDto);
+        List<PurchaserDetailsDto> GetPurchasersForGift(int giftId);// קבלת פרטי רוכשים עבור מתנה מסוימת
 
         // קבלת היסטוריית הזמנות של משתמש
         List<OrderDTO> GetUserHistory(int userId);

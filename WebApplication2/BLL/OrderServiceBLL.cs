@@ -14,7 +14,10 @@ namespace WebApplication2.BLL
             _orderDal = orderDal;
             _giftDal = giftDal;
         }
-
+        public List<PurchaserDetailsDto> GetPurchasersForGift(int giftId)
+        {
+            return _orderDal.GetPurchasersByGiftId(giftId);
+        }
         public int PlaceOrder(OrderDTO Dto)
         {
             double totalSum = 0;

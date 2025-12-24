@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using WebApplication2.DAL; // מייבא מרחב ה-DAL
 using WebApplication2.Models; // מייבא מודלים
 using WebApplication2.Models.DTO; // מייבא DTOs
+using AutoMapper.QueryableExtensions; // Add this at the top
 
 public class GiftDAL : IGiftDal // מימוש DAL עבור מתנות
 { // התחלת מחלקה
@@ -41,6 +42,18 @@ public class GiftDAL : IGiftDal // מימוש DAL עבור מתנות
         // 5. מיפוי ל-DTO
         return _mapper.Map<List<GiftDTO>>(gifts);
     }
+    public List<GiftDTO> GetGiftsSortedByPrice() =>
+    _context.Gifts
+    .OrderByDescending(g => g.TicketPrice)
+    .ProjectTo<GiftDTO>(_mapper.ConfigurationProvider)
+    .ToList();
+
+// 4. פונקציה חדשה: המתנה הנרכשת ביותר
+public List<GiftDTO> GetMostPurchasedGifts() =>
+    _context.Gifts
+    .OrderByDescending(g => _context.OrderTicket.Where(t => t.GiftId == g.Id).Sum(t => t.Quantity))
+    .ProjectTo<GiftDTO>(_mapper.ConfigurationProvider)
+    .ToList();
     public void add(GiftDTO giftDto) // הוספת מתנה חדשה
     { // התחלת שיטה
         var gift = _mapper.Map<GiftModel>(giftDto); // המרת DTO למודל

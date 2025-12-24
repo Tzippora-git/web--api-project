@@ -45,4 +45,29 @@ public class GiftsController : ControllerBase // בקר לטיפול במתנו�
         _giftBll.deleteGift(id); // קריאה ל-BLL למחיקה
         return Ok("המתנה נמחקה מהמערכת"); // החזרת הצלחה
     } // סיום שיטה Delete
+      // 1. נתיב למיון לפי המחיר הגבוה ביותר
+    [HttpGet("sorted-by-price")]
+    [Authorize(Roles = "manager")] // רק מנהל יכול לראות מיונים ניהוליים
+    public IActionResult GetGiftsByPrice()
+    {
+        var gifts = _giftBll.GetGiftsSortedByPrice();
+        return Ok(gifts);
+    }
+
+    // 2. נתיב למיון לפי המתנה הנרכשת ביותר
+    [HttpGet("most-purchased")]
+    [Authorize(Roles = "manager")]
+    public IActionResult GetMostPurchased()
+    {
+        var gifts = _giftBll.GetMostPurchasedGifts();
+        return Ok(gifts);
+    }
+
+    // 3. עדכון ה-Get הקיים כדי לתמוך בסינון המלא (כולל minPurchasers)
+    [HttpGet("filter")]
+    public IActionResult GetFiltered([FromQuery] string? name, [FromQuery] string? donorName, [FromQuery] int? minPurchasers)
+    {
+        var results = _giftBll.GetGiftsByFilter(name, donorName, minPurchasers);
+        return Ok(results);
+    }
 } // סיום מחלקה

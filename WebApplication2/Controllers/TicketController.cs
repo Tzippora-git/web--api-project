@@ -13,11 +13,7 @@ namespace WebApplication2.Controllers
     {
         private readonly IOrderBLL _orderBll;
 
-
         public OrderController(IOrderBLL orderBll)
-
-        
-
         {
             _orderBll = orderBll;
         }
@@ -40,6 +36,19 @@ namespace WebApplication2.Controllers
                 // כאן המידלוור של השגיאות יתפוס שגיאות לא צפויות
                 return StatusCode(500, "אירעה שגיאה בעיבוד ההזמנה");
             }
+        }
+
+        // צפייה בפרטי הרוכשים עבור מתנה מסוימת
+        [HttpGet("purchasers/{giftId}")]
+        [Authorize(Roles = "manager")] // מוגן להנהלה בלבד
+        public IActionResult GetPurchasers(int giftId)
+        {
+            var purchasers = _orderBll.GetPurchasersForGift(giftId);
+            if (purchasers == null || purchasers.Count == 0)
+            {
+                return NotFound("לא נמצאו רוכשים למתנה זו");
+            }
+            return Ok(purchasers);
         }
     }
 }

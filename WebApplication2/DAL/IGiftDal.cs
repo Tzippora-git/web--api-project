@@ -6,6 +6,8 @@ namespace WebApplication2.DAL // מרחב שמות ל-DAL
     { // פתיחת ממשק
         List<GiftDTO> getAll(); // החזרת כל המתנות כ-List של DTO
         List<GiftDTO> GetByFilter(string? name, string? donorName, int? minPurchasers);// החזרת מתנות לפי סינון
+        List<GiftDTO> GetGiftsSortedByPrice();// החזרת מתנות ממוינות לפי מחיר כרטיס
+        List<GiftDTO> GetMostPurchasedGifts();// החזרת המתנות הנרכשות ביותר
         void add(GiftDTO gift); // הוספת מתנה חדשה
         void update(GiftDTO gift); // עדכון מתנה קיימת
         void delete(int id); // מחיקת מתנה לפי Id
