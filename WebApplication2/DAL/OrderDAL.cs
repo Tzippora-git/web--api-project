@@ -19,7 +19,8 @@ namespace WebApplication2.DAL
             _context.SaveChanges(); // שומר את ההזמנה ואת כל ה-OrderItems שקשורים אליה
             return order.Id;
         }
-        public List<PurchaserDetailsDto> GetPurchasersByGiftId(int giftId)
+
+        public List<PurchaserDetailsDto> GetPurchasersByGiftId(int giftId)//שולף את כל הרוכשים של מתנה מסוימת
         {
             return _context.OrderTicket
                 .Where(t => t.GiftId == giftId)
@@ -31,7 +32,8 @@ namespace WebApplication2.DAL
                 })
                 .ToList();
         }
-        public List<OrderModel> GetUserOrders(int userId)
+
+        public List<OrderModel> GetUserOrders(int userId)//שולף את כל הרכישות של משתמש מסוים
         {
             return _context.Orders
                 .Where(o => o.UserId == userId)
