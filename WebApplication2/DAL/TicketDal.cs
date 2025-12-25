@@ -21,11 +21,7 @@ namespace WebApplication2.DAL
         }
 
         // Get all purchase tickets
-        public Task<List<TicketDTO>> GetAllAsync()
-        {
-            throw new NotImplementedException();
-        }
-
+        
         public Task<TicketDTO> GetById(int id)
         {
             throw new NotImplementedException();
@@ -46,7 +42,10 @@ namespace WebApplication2.DAL
             throw new NotImplementedException();
         }
 
-     
+        public List<TicketDTO> GetAllTickets()
+        {
+            throw new NotImplementedException();
+        }
     }
 }
 
