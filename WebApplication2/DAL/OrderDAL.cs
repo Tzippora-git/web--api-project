@@ -67,5 +67,17 @@ namespace WebApplication2.DAL
         {
             return await _context.OrderTicket.AnyAsync(t => t.GiftId == giftId);
         }
+
+        public async Task<bool> ConfirmOrderAsync(int orderId)
+        {
+            var order = await _context.Orders.FindAsync(orderId);
+            if (order != null)
+            {
+                order.IsDraft = false;
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            return false;
+        }
     }
 }

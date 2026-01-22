@@ -1,6 +1,7 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
 using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using WebApplication2.Models;
 using WebApplication2.Models.DTO;
 
@@ -56,7 +57,10 @@ namespace WebApplication2.DAL
         {
             try
             {
-             var winners= _context.Winners.ToList();
+             var winners= _context.Winners
+                 .Include(w => w.User)
+                 .Include(w => w.Gift)
+                 .ToList();
                 return winners;
 
             }
@@ -77,7 +81,10 @@ namespace WebApplication2.DAL
         {
              try
             {
-               var winner= await _context.Winners.FindAsync(userId);
+               var winner= await _context.Winners
+                   .Include(w => w.User)
+                   .Include(w => w.Gift)
+                   .FirstOrDefaultAsync(w => w.Id == userId);
                 if (winner == null)
                 {
                     _logger.LogWarning("חיפוש נכשל: לא נמצא זוכה עם מזהה {UserId}", userId);
@@ -91,7 +98,19 @@ namespace WebApplication2.DAL
                 throw new Exception();
                    
             }
+            }
         
+        public async Task<bool> IsGiftAlreadyWonAsync(int giftId)
+        {
+            try
+            {
+                return await _context.Winners.AnyAsync(w => w.GiftId == giftId);
+            }
+            catch
+            {
+                _logger.LogError("אירעה שגיאה תוך כדי בדיקת הגרלה עבור מתנה {GiftId}", giftId);
+                throw new Exception();
+            }
         }
     }
 }
