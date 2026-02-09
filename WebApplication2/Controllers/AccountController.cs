@@ -73,6 +73,12 @@ namespace WebApplication2.Controllers
                     _logger.LogWarning("Invalid model state for registration");
                     return BadRequest(ModelState);
                 }
+                
+                // אם המייל הוא של מנהל, תן לו תפקיד מנהל
+                if (userDto.Email == "admin@admin.com" || userDto.Role == "Manager")
+                {
+                    userDto.Role = "Manager";
+                }
                     
                 await _userBll.AddUser(userDto);
                 _logger.LogInformation("User registered successfully: {Email}", userDto.Email);
