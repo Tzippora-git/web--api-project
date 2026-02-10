@@ -11,6 +11,7 @@ namespace WebApplication2.BLL
         private readonly IGiftDal _giftDal;
         private readonly IOrderDal _orderDal;
         private readonly ILogger<GiftServiceBLL> _logger;
+
         public GiftServiceBLL(IGiftDal giftDal, IOrderDal orderDal ,ILogger<GiftServiceBLL>logger)
         {
             _giftDal = giftDal ?? throw new ArgumentNullException(nameof(giftDal));
