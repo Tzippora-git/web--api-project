@@ -25,6 +25,7 @@ namespace WebApplication2.DAL
         public async Task<List<GiftDTO>> GetByFilter(string? name, string? donorName, int? minPurchasers)
         {
             var query = _context.Gifts
+                .Where(g => !g.IsDeleted)
                 .Include(g => g.Category)
                 .Include(g => g.Donor)
                 .AsQueryable();
@@ -65,7 +66,7 @@ namespace WebApplication2.DAL
             return giftDtos;
         }
 
-        public Task<List<GiftDTO>> GetGiftsSortedByPrice() =>
+        public  Task<List<GiftDTO>> GetGiftsSortedByPrice() =>
             _context.Gifts
                 .AsNoTracking()
                 .OrderByDescending(g => g.TicketPrice)
@@ -84,7 +85,7 @@ namespace WebApplication2.DAL
             var gift = _mapper.Map<GiftModel>(giftDto);
 
             var category = await _context.Categories
-                .FirstOrDefaultAsync(c => c.Name == giftDto.Category);
+                .FirstOrDefaultAsync(c => c.Name.ToLower() == giftDto.Category.ToLower());
             if (category == null)
             {
                 category = new CategoryModel { Name = giftDto.Category };

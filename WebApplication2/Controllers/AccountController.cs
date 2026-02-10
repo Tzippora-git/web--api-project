@@ -26,46 +26,62 @@ namespace WebApplication2.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDTO login)
         {
-            var user = await _userBll.ValidateUser(login.Email, login.Password);
+            _logger.LogInformation("Login attempt for email: {Email}", login.Email);
 
-            if (user != null)
+            try
             {
-                var tokenHandler = new JwtSecurityTokenHandler();
-                var jwtSecretKey = _configuration["Jwt:SecretKey"] ?? "YourSuperSecretKeyHere1234567890!";
-                var key = Encoding.ASCII.GetBytes(jwtSecretKey);
+                var user = await _userBll.ValidateUser(login.Email, login.Password);
 
-                var tokenDescriptor = new SecurityTokenDescriptor
+                if (user != null)
                 {
-                    Subject = new ClaimsIdentity(new[] {
-                        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                        new Claim(ClaimTypes.Name, user.Name),
-                        new Claim(ClaimTypes.Email, user.Email),
-                        new Claim(ClaimTypes.Role, user.Role)
-                    }),
-                    Expires = DateTime.UtcNow.AddHours(2),
-                    SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-                };
+                    var tokenHandler = new JwtSecurityTokenHandler();
+                    var jwtSecretKey = _configuration["Jwt:SecretKey"] ?? "YourSuperSecretKeyHere1234567890!";
+                    var key = Encoding.ASCII.GetBytes(jwtSecretKey);
 
-                var token = tokenHandler.CreateToken(tokenDescriptor);
-                return Ok(new { 
-                    token = tokenHandler.WriteToken(token),
-                    user = new {
-                        id = user.Id,
-                        name = user.Name,
-                        email = user.Email,
-                        role = user.Role
-                    }
-                });
+                    var tokenDescriptor = new SecurityTokenDescriptor
+                    {
+                        Subject = new ClaimsIdentity(new[] {
+                            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                            new Claim(ClaimTypes.Name, user.Name),
+                            new Claim(ClaimTypes.Email, user.Email),
+                            new Claim(ClaimTypes.Role, user.Role)
+                        }),
+                        Expires = DateTime.UtcNow.AddHours(2),
+                        SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+                    };
+
+                    var token = tokenHandler.CreateToken(tokenDescriptor);
+                    _logger.LogInformation("Login successful for email: {Email}", login.Email);
+
+                    return Ok(new
+                    {
+                        token = tokenHandler.WriteToken(token),
+                        user = new
+                        {
+                            id = user.Id,
+                            name = user.Name,
+                            email = user.Email,
+                            role = user.Role
+                        }
+                    });
+                }
+
+                _logger.LogWarning("Invalid login attempt for email: {Email}", login.Email);
+                return Unauthorized("Invalid username or password");
+
             }
-
-            return Unauthorized("Invalid username or password");
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during login for email: {Email}", login.Email);
+                return StatusCode(500, new { error = "An error occurred while processing your request." });
+            }
         }
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] UserDto userDto)
         {
             _logger.LogInformation("Registration attempt for email: {Email}", userDto?.Email);
-            
+
             try
             {
                 if (!ModelState.IsValid)
@@ -73,16 +89,17 @@ namespace WebApplication2.Controllers
                     _logger.LogWarning("Invalid model state for registration");
                     return BadRequest(ModelState);
                 }
-                
+
                 // אם המייל הוא של מנהל, תן לו תפקיד מנהל
                 if (userDto.Email == "admin@admin.com" || userDto.Role == "Manager")
                 {
                     userDto.Role = "Manager";
+                    _logger.LogInformation("Role set to Manager for email: {Email}", userDto?.Email);
                 }
-                    
+
                 await _userBll.AddUser(userDto);
                 _logger.LogInformation("User registered successfully: {Email}", userDto.Email);
-                
+
                 // התחבר אוטומטית אחרי הרשמה
                 var user = await _userBll.ValidateUser(userDto.Email, userDto.Password);
                 if (user != null)
@@ -104,18 +121,23 @@ namespace WebApplication2.Controllers
                     };
 
                     var token = tokenHandler.CreateToken(tokenDescriptor);
-                    return Ok(new { 
+                    _logger.LogInformation("User {Email} logged in automatically after registration", user.Email);
+
+                    return Ok(new
+                    {
                         token = tokenHandler.WriteToken(token),
-                        user = new {
+                        user = new
+                        {
                             id = user.Id,
                             name = user.Name,
                             email = user.Email,
                             role = user.Role
                         },
-                        message = "User registered successfully" 
+                        message = "User registered successfully"
                     });
                 }
-                
+
+
                 return Ok(new { message = "User registered successfully. You can now log in." });
             }
             catch (Exception ex)

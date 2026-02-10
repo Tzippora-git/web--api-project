@@ -83,14 +83,11 @@ namespace WebApplication2.DAL // מרחב שמות ל-DAL
 
                 b.HasQueryFilter(g => !g.IsDeleted);
             });
-
             // --- OrderTicket / Order / Winner navigations and other entity config kept as before ---
             modelBuilder.Entity<OrderTicketModel>() // קשר OrderItem -> Order
                 .HasOne(oi => oi.Order) // לכל פריט יש הזמנה
                 .WithMany(o => o.OrderItems) // להזמנה יש פריטים רבים
                 .HasForeignKey(oi => oi.OrderId); // מפתח זר
-
-            base.OnModelCreating(modelBuilder); // קריאה למימוש הבסיסי
 
             modelBuilder.Entity<WinnerModel>().HasKey(w => w.Id);
 

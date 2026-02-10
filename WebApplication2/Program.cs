@@ -62,7 +62,7 @@ builder.Services.AddAuthentication(options => // רישום Authentication
         ValidateIssuerSigningKey = true, // בדיקת החתימה
         IssuerSigningKey = new SymmetricSecurityKey(key),//
         // מפתח החתימה
-   RoleClaimType = "role"
+   RoleClaimType = System.Security.Claims.ClaimTypes.Role
     }; 
     // סיום פרמטרים
 
