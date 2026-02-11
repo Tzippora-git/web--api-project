@@ -16,11 +16,13 @@ namespace WebApplication2.DAL
     {
         private readonly IMapper _mapper;
         private readonly StoreContext _context;
-
-        public UserDAL(StoreContext context, IMapper mapper)
+        private readonly ILogger _logger;
+        public UserDAL(StoreContext context, IMapper mapper, ILogger<UserDAL> logger)
         {
             _context = context;
             _mapper = mapper;
+            _logger = logger;
+
         }
         //המרה בין UserRole למחרוזת
         private static readonly ValueConverter<UserRole, string> _userRoleConverter = new ValueConverter<UserRole, string>(
@@ -55,24 +57,40 @@ namespace WebApplication2.DAL
         // Read-only: use ProjectTo and AsNoTracking.
         // Ensure AutoMapper mapping UserModel -> UserDto excludes Password so EF doesn't fetch it.
         public async Task<List<UserDto>> GetAll()
-        { 
+        {
+            try
+            {
                 return await _context.Users
                 .AsNoTracking()                // שלא יעקוב אחרי השינויים כיון שזה שליפה בלבד וכך חוסך בזיכרון
                 .ProjectTo<UserDto>(_mapper.ConfigurationProvider)//המרת הרשימה שחוזרת מה
-                                                                  //DB
-                                                                  //לרשימה של
-                                                                  //DTO
-                .ToListAsync();                                // ביצוע השאילתה וחזרת התוצאה כרשימה
+                 .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in UserDAL.GetAll");
+                Console.WriteLine($"error during GetAll operation:{ex.Message}");
+                throw;                                         //לרשימה של
+                                                               //DTO
+            }                            // ביצוע השאילתה וחזרת התוצאה כרשימה
         }
 
         // Soft-delete for User
         public async Task Delete(int id)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user != null)
+            try
             {
-                user.IsDeleted = true;
-                await _context.SaveChangesAsync();
+                var user = await _context.Users.FindAsync(id);
+                if (user != null)
+                {
+                    user.IsDeleted = true;
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch
+            {
+                _logger.LogError($"Error in UserDAL.Delete for id: {id}");
+                Console.WriteLine($"error during Delete operation for id: {id}");
+                throw;
             }
         }
 
@@ -106,36 +124,45 @@ namespace WebApplication2.DAL
          //המערך הזה מכיל את השדות של
          //UserModel
          //שהשתנו, כך שנוכל לדעת אילו שדות יש לעדכן במסד הנתונים.
-            var entity = new UserModel { Id = id };
-            _context.Users.Attach(entity);// מצמיד את האובייקט להקשר של
-                                          // EF
-                                          //זה מאפשר ל-
-                                         //Entity Framework
-                                          //לדעת שהאובייקט הזה עשוי להשתנות,
-                                          //ואם יהיו שינויים,
-                                          //הוא ידע לעדכן אותם במסד הנתונים
-            setValues(entity);//שם את הערכים החדשים לאובייקט
-                                
-            var entry = _context.Entry(entity);
-            //השורה הזו מקבלת את ה-"entry" של האובייקט בקשר.
-            //ה-entry
-            //הוא אובייקט המייצג את המצב הנוכחי של האובייקט בתוך הקשר ה
-            //-DbContext.
-            //ניתן להשתמש בו כדי לגשת למידע כמו אם השדה שונה או אם צריך לעדכן אותו במסד.
-            foreach (var prop in modifiedProperties)
+            try
             {
-                var propName = GetPropertyName(prop);
-                //זיהוי השדות (The Identification):
-                //כאן נכנסת הלולאה שכתבת. ה - GetPropertyName
-                //אומר למערכת: "הנה השמות של העמודות שצריך לעדכן"
-                //.זהו שלב המיפוי
-                //.
-                entry.Property(propName).IsModified = true;
-                //IsModified = true, כלומר, ה-Entity Framework
-                //יידע שיש לשדה הזה ערך חדש ויש לעדכן אותו במסד הנתונים.
-            }
+                var entity = new UserModel { Id = id };
+                _context.Users.Attach(entity);// מצמיד את האובייקט להקשר של
+                                              // EF
+                                              //זה מאפשר ל-
+                                              //Entity Framework
+                                              //לדעת שהאובייקט הזה עשוי להשתנות,
+                                              //ואם יהיו שינויים,
+                                              //הוא ידע לעדכן אותם במסד הנתונים
+                setValues(entity);//שם את הערכים החדשים לאובייקט
 
-            await _context.SaveChangesAsync();
+                var entry = _context.Entry(entity);
+                //השורה הזו מקבלת את ה-"entry" של האובייקט בקשר.
+                //ה-entry
+                //הוא אובייקט המייצג את המצב הנוכחי של האובייקט בתוך הקשר ה
+                //-DbContext.
+                //ניתן להשתמש בו כדי לגשת למידע כמו אם השדה שונה או אם צריך לעדכן אותו במסד.
+                foreach (var prop in modifiedProperties)
+                {
+                    var propName = GetPropertyName(prop);
+                    //זיהוי השדות (The Identification):
+                    //כאן נכנסת הלולאה שכתבת. ה - GetPropertyName
+                    //אומר למערכת: "הנה השמות של העמודות שצריך לעדכן"
+                    //.זהו שלב המיפוי
+                    //.
+                    entry.Property(propName).IsModified = true;
+                    //IsModified = true, כלומר, ה-Entity Framework
+                    //יידע שיש לשדה הזה ערך חדש ויש לעדכן אותו במסד הנתונים.
+                }
+
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error in UserDAL.UpdatePartialAsync for id: {id}");
+                Console.WriteLine($"error during UpdatePartialAsync operation for id: {id}, error: {ex.Message}");
+                throw;
+            }
         }
 
         // Helper to extract property name from expression
@@ -155,12 +182,21 @@ namespace WebApplication2.DAL
             //אלה שתי דרכים  על מנת לחלץ את שם המאפין מתוך הביטוי.
             throw new ArgumentException("Invalid expression");
         }
-     
+
         public async Task<UserModel> GetFullUserByEmailAsync(string email)
         { //שליפת משתמש מלא לפי אימייל
-            return await _context.Users
-                .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Email == email && !u.IsDeleted);
+            try
+            {
+                return await _context.Users
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.Email == email && !u.IsDeleted);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error in UserDAL.GetFullUserByEmailAsync for email: {email}");
+                Console.WriteLine($"error during GetFullUserByEmailAsync , error: {ex.Message}");
+                throw;
+            }
         }
     }
 }
