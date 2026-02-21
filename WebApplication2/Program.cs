@@ -20,7 +20,7 @@ using System.Text.Json.Serialization; // מייבא JsonNamingPolicy
 // - בונה שרשרת מידלוואר (Middleware) ומתחיל את היישום באמצעות app.Run().
 // -----------------------------
 
-var builder = WebApplication.CreateBuilder(args); 
+var builder = WebApplication.CreateBuilder(args);
 
 // מפתח סימטרי לשימוש בחתימת JWT
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] ?? "YourSuperSecretKeyHere1234567890!";
