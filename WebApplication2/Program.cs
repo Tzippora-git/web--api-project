@@ -18,164 +18,120 @@ using System.Text.Json.Serialization; // מייבא JsonNamingPolicy
 // - מגדיר אמצעי אימות/אבטחה (Authentication / Authorization).
 // - מגדיר Swagger לפיתוח/תיעוד API.
 // - בונה שרשרת מידלוואר (Middleware) ומתחיל את היישום באמצעות app.Run().
-// הערות שימושיות:
-// - שמירת מפתחות/מחרוזות רגישות: אל תניחו מפתח קשיח בקוד — השתמשו ב־appsettings / User Secrets / Key Vault.
-// - סדר המידלווארים חשוב: UseAuthentication חייב לבוא לפני UseAuthorization וכו'.
 // -----------------------------
 
-var builder = WebApplication.CreateBuilder(args); // יצירת WebApplicationBuilder: אוסף קונפיגורציה, DI ו־logging
+var builder = WebApplication.CreateBuilder(args); 
 
-// מפתח סימטרי לשימוש בחתימת JWT - נטען מהקונפיגורציה
+// מפתח סימטרי לשימוש בחתימת JWT
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] ?? "YourSuperSecretKeyHere1234567890!";
 var key = Encoding.ASCII.GetBytes(jwtSecretKey);
 
 // -----------------------------
 // Authentication (אימות זהות)
 // -----------------------------
-// AddAuthentication מגדיר את ה־schemes הברירת מחדל לאימות (כאן: JwtBearer).
-// AddJwtBearer מגדיר כיצד יש לאמת טוקנים שמגיעים ב־Authorization: Bearer {token}.
-builder.Services.AddAuthentication(options => // רישום Authentication
-{ // התחלת קונפיגורציה
-    // הגדרת ה־scheme שישמש כברירת מחדל לאימות ואתגר (challenge)
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme; // הגדרת scheme ברירת מחדל
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme; // הגדרת challenge scheme
-}) // סיום AddAuthentication
-.AddJwtBearer(options => // הוספת JwtBearer
-{ // התחלת קונפיגורציה JwtBearer
-    // TokenValidationParameters מגדיר אילו בדיקות לבצע על ה‑JWT:
-    // - ValidateIssuer: האם לבדוק את ה‑iss (מנפיק הטוקן).
-    // - ValidateAudience: האם לבדוק את ה‑aud (היעד של הטוקן).
-    // - ValidateLifetime: בדיקת תוקף (exp / nbf).
-    // - ValidateIssuerSigningKey: בדיקת החתימה בעזרת המפתח/מפתח ציבורי.
-    // - IssuerSigningKey: המפתח המשמש לאימות החתימה (כאן - Symmetric).
-    options.TokenValidationParameters = new TokenValidationParameters // פרמטרים לאימות הטוקן
-    { // התחלת פרמטרים
-        // בדוגמה זו כיבינו בדיקות issuer/audience (לא מומלץ בפרודקשן).
-        // רצוי להגדיר ValidateIssuer = true ו־ValidIssuer = configuration["Jwt:Issuer"]
-        ValidateIssuer = false, // בדיקת issuer (כבוי בדוגמה)
-        ValidateAudience = false, // בדיקת audience (כבוי בדוגמה)
-
-        // תמיד להפעיל ValidateLifetime בשרת כדי למנוע שימוש בטוקנים שפגו.
-        ValidateLifetime = true, // בדיקת תוקף
-
-        // יש לאמת שהחתימה תקפה — חובה כאשר משתמשים בחתימה סימטרית/אסימטרית.
-        ValidateIssuerSigningKey = true, // בדיקת החתימה
-        IssuerSigningKey = new SymmetricSecurityKey(key),//
-        // מפתח החתימה
-   RoleClaimType = System.Security.Claims.ClaimTypes.Role
-    }; 
-    // סיום פרמטרים
-
-    // אופציות נוסxxx שאפשר להוסיף (לא מופיעות כאן בדוגמה):
-    // options.RequireHttpsMetadata = true; // למנוע שימוש ב־HTTP בעת פיתוח/פרודקשן
-    // options.SaveToken = true;
-    // options.Events = new JwtBearerEvents { OnAuthenticationFailed = ..., OnTokenValidated = ... };
-}); // סיום AddJwtBearer
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = false,
+        ValidateAudience = false,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        RoleClaimType = System.Security.Claims.ClaimTypes.Role
+    };
+});
 
 // -----------------------------
 // Swagger / OpenAPI
 // -----------------------------
-// Swagger מספק תיעוד אינטראקטיבי של ה־API. כאן מוסיפים תיעוד בסיסי ויכולת להזין טוקן Bearer ב־UI.
-builder.Services.AddEndpointsApiExplorer(); // רישום API explorer
-builder.Services.AddSwaggerGen(c => // רישום Swagger
-{ // התחלת קונפיגורציה Swagger
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "My Auction API", Version = "v1" }); // הגדרת מסמך Swagger
-
-    // הוספת שדה אבטחה מסוג Bearer ל־Swagger UI:
-    // זה מאפשר להזין Authorization: Bearer {token} דרך הממשק של Swagger.
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme // הוספת הגדרת אבטחה
-    { // התחלת הגדרת אבטחה
-        Description = "אנא הכנס את ה-Token בפורמט הזה: Bearer {your_token}", // תיאור לשדה Authorization
-        Name = "Authorization", // שם הכותרת
-        In = ParameterLocation.Header, // מיקום הפרמטר
-        Type = SecuritySchemeType.ApiKey, // סוג סכימה
-        Scheme = "Bearer" // סכימת Bearer
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "My Auction API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "אנא הכנס את ה-Token בפורמט הזה: Bearer {your_token}",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
     });
-
-    // מחייב הוספת טוקן בכל הבקשות ב־Swagger UI (ניתן להתאים לפי צורך).
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement // הוספת דרישת אבטחה גלובלית
-    { // תחילת דרישה
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } // הפניה להגדרת ה-Bearer
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
             },
-            new string[] {} // ללא scopes נוספים
+            new string[] {}
         }
     });
-}); // סיום SwaggerGen
+});
 
 // -----------------------------
 // שירותים נוספים (DI) והרשאות AutoMapper/DbContext
 // -----------------------------
-builder.Services.AddAutoMapper(typeof(Program).Assembly); // רישום AutoMapper – מפה בין מודלים/DTOs
-// רישום DbContext – חיבור ל‑SQL Server עם מחרוזת החיבור מהקונפיגורציה (appsettings.json / secrets)
-builder.Services.AddDbContext<StoreContext>(options => // רישום DbContext
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"), // חיבור למסד SQL
-sqlServerOptionsAction: sqlOptions =>
-{
-    // זהו התיקון: מאפשר ניסיונות חוזרים אוטומטיים במקרה של שגיאה רגעית
-    sqlOptions.EnableRetryOnFailure(
-        maxRetryCount: 5,        // מספר הניסיונות המקסימלי
-        maxRetryDelay: TimeSpan.FromSeconds(30), // זמן המתנה מקסימלי בין ניסיונות
-        errorNumbersToAdd: null // קודי שגיאה ספציפיים נוספים (אופציונלי)
-
+builder.Services.AddAutoMapper(typeof(Program).Assembly);
+builder.Services.AddDbContext<StoreContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
+    sqlServerOptionsAction: sqlOptions =>
+    {
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorNumbersToAdd: null
         );
-}
+    }
 ));
+
 // -----------------------------
 // רישום שירותי DAL/BLL ב־Dependency Injection
 // -----------------------------
-// AddScoped: חיוניות להרצה בפרוסקופ של בקשה HTTP (Scope per request).
-// - אם רוצים singleton/service יחיד לכל היישום יש להשתמש ב־AddSingleton.
-// - אם רוצים transient (מופע חדש בכל בקשה ל־constructor) יש AddTransient.
-builder.Services.AddScoped<IGiftDal, GiftDAL>(); // רישום GiftDAL
-builder.Services.AddScoped<IGiftBLL, GiftServiceBLL>(); // רישום Gift BLL
-builder.Services.AddScoped<IDonorDal, DonorDAL>(); // רישום DonorDAL (אם קיים)
-builder.Services.AddScoped<IDonorBLL, DonorServiceBLL>(); // רישום Donor BLL (אם קיים)
-builder.Services.AddScoped<ICategoryDal, CategoryDAL>(); // רישום CategoryDAL (אם קיים)
-builder.Services.AddScoped<ICategoryBLL, CategoryServiceBLL>(); // רישום Category BLL (אם קיים)
-builder.Services.AddScoped<IOrderDal, OrderDAL>(); // רישום OrderDAL (אם קיים)
-builder.Services.AddScoped<IOrderBLL, OrderServiceBLL>(); // רישום Order BLL (אם קיים)
-builder.Services.AddScoped<RaffleSarviceBLL>(); // רישום Raffle Service
-builder.Services.AddScoped<IWinnerDAL, WinnerDal>(provider => // רישום מותאם של WinnerDAL
+builder.Services.AddScoped<IGiftDal, GiftDAL>();
+builder.Services.AddScoped<IGiftBLL, GiftServiceBLL>();
+builder.Services.AddScoped<IDonorDal, DonorDAL>();
+builder.Services.AddScoped<IDonorBLL, DonorServiceBLL>();
+builder.Services.AddScoped<ICategoryDal, CategoryDAL>();
+builder.Services.AddScoped<ICategoryBLL, CategoryServiceBLL>();
+builder.Services.AddScoped<IOrderDal, OrderDAL>();
+builder.Services.AddScoped<IOrderBLL, OrderServiceBLL>();
+builder.Services.AddScoped<RaffleSarviceBLL>();
+
+builder.Services.AddScoped<IWinnerDAL, WinnerDal>(provider =>
 {
-    var context = provider.GetRequiredService<StoreContext>(); // קבלת StoreContext מ־D׉I
-    var mapper = provider.GetRequiredService<IMapper>(); // קבלת IMapper מ־D׉I
-    var logger = provider.GetRequiredService<ILogger<WinnerDal>>(); // קבלת ILogger מ־D׉I
-    return new WinnerDal(context, mapper, logger); // יצירת מופע WinnerDal
+    var context = provider.GetRequiredService<StoreContext>();
+    var mapper = provider.GetRequiredService<IMapper>();
+    var logger = provider.GetRequiredService<ILogger<WinnerDal>>();
+    return new WinnerDal(context, mapper, logger);
 });
 
-
-
-// דוגמה של רישום מותאם: יצירת UserDAL עם תלויות ידניות מה־DI (context + mapper).
-// שימוש ב־factory שימושי כאשר הבנאי של השירות דורש פרמטרים או לוגיקה מיוחדת.
+// רישום UserDAL מתוקן (ללא קונפליקטים)
 builder.Services.AddScoped<IUserDal, UserDAL>(provider =>
 {
-<<<<<<< HEAD
-    var context = provider.GetRequiredService<StoreContext>(); // קבלת StoreContext מ‑DI
-    var mapper = provider.GetRequiredService<IMapper>(); // קבלת IMapper מ‑DI
+    var context = provider.GetRequiredService<StoreContext>();
+    var mapper = provider.GetRequiredService<IMapper>();
     var logger = provider.GetRequiredService<ILogger<UserDAL>>();
-    return new UserDAL(context, mapper, logger); // יצירת מופע UserDAL
-=======
-    var context = provider.GetRequiredService<StoreContext>(); // קבלת ה-Context
-    var mapper = provider.GetRequiredService<IMapper>(); // קבלת ה-Mapper
-    var logger = provider.GetRequiredService<ILogger<UserDAL>>(); // הוספת השורה הזו! קבלת ה-Logger
 
-    return new UserDAL(context, mapper, logger); // שליחת שלושתם לבנאי
->>>>>>> 6d8445bf3bdd61397ef430ab7ab448b34341e673
+    return new UserDAL(context, mapper, logger);
 });
-builder.Services.AddScoped<IUserBll, UserServiceBLL>(); // רישום User BLL
-builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings")); // רישום הגדרות מייל
-builder.Services.AddScoped<IEmailService, EmailService>(); // רישום Email Service
 
-// רישום MVC controllers ו־Razor Pages (הפרויקט הוא Razor Pages ולכן חשוב).
+builder.Services.AddScoped<IUserBll, UserServiceBLL>();
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddScoped<IEmailService, EmailService>();
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase; // המרה ל-camelCase בחזרה ל-Angular
-    }); // רישום Controllers (למקרה שיש API controllers)
-builder.Services.AddRazorPages(); // רישום Razor Pages (UI הפניה לדפים)
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
+
+builder.Services.AddRazorPages();
 
 // הוספת CORS לאנגולר
 builder.Services.AddCors(options =>
@@ -183,7 +139,6 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAngular", policy =>
     {
         policy.WithOrigins("http://localhost:4200")
-        
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -193,51 +148,30 @@ builder.Services.AddCors(options =>
 // -----------------------------
 // בנייה והרצת היישום
 // -----------------------------
-var app = builder.Build(); // בניית היישום מה־builder וה־service container
+var app = builder.Build();
 
-// -----------------------------
-// Middlewares — טיפול גלובלי בשגיאות ורישום לוגים
-// -----------------------------
-// הוספת Middlewares מותאמים לטיפול בשגיאות ורישום מפורט של בקשות ותגובות
-app.UseCustomExceptionHandling(); // Middleware לטיפול בשגיאות עם לוגים מתקדמים
-app.UseRequestResponseLogging(); // Middleware לרישום בקשות ותגובות
+app.UseCustomExceptionHandling();
+app.UseRequestResponseLogging();
 
-// -----------------------------
-// טיפול בסביבת הרצה (Development / Production)
-// -----------------------------
-if (app.Environment.IsDevelopment()) // במצב פיתוח
+if (app.Environment.IsDevelopment())
 {
-    // פקודות פתוחות לפיתוח בלבד: Swagger UI ועוד כלים לדיבאג.
-    app.UseSwagger(); // הפעלת Swagger
-    app.UseSwaggerUI(); // הפעלת Swagger UI
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
-else // במצב פרודקשן
+else
 {
-    // במצב פרודקשן נשתמש ב‑ExceptionHandler המתקדם יותר כדי להציג דף שגיאה ידידותי.
-    app.UseExceptionHandler("/Error"); // ניתוב לדף שגיאה
-    app.UseHsts(); // הפעלת HSTS (אבטחת שכבות רשת, דרוש HTTPS)
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
 }
 
-// -----------------------------
-// שימוש במידלווארים סטנדרטיים
-// -----------------------------
-//app.UseHttpsRedirection(); // ניתוב אוטומטי ל־HTTPS (אם זמין)
 app.UseCors("AllowAngular");
-app.UseStaticFiles(); // הגשת קבצים סטטיים מתיקיית wwwroot
+app.UseStaticFiles();
+app.UseRouting();
 
-// הפעלת CORS
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.UseRouting(); // הפעלת ניתוב — חייב לפני UseAuthentication/UseAuthorization
+app.MapRazorPages();
+app.MapControllers();
 
-// סדר חשוב:
-// 1. UseAuthentication() – מאמת Identity מהבקשה (מממש את ה־Principal).
-// 2. UseAuthorization() – בודק האם ה־Principal מורשה לגשת למשאב.
-app.UseAuthentication(); // הפעלת Authentication
-app.UseAuthorization(); // הפעלת Authorization
-
-// מיפוי נקודות קצה: Razor Pages ו־Controllers (API)
-// חשוב: מיפוי צריך להתבצע אחרי כל המידלווארים שהכרנו למעלה.
-app.MapRazorPages(); // מיפוי Razor Pages
-app.MapControllers(); // מיפוי Controllers
-
-app.Run(); // הרצת האפליקציה — חסימה עד שנסגר השרת
+app.Run();
