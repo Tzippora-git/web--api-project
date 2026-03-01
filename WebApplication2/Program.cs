@@ -9,6 +9,7 @@ using System.Text; // מייבא Encoding
 using AutoMapper; // מייבא AutoMapper
 using WebApplication2.Extensions; // מייבא Extension Methods עבור Middlewares
 using System.Text.Json.Serialization; // מייבא JsonNamingPolicy
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 
 // -----------------------------
 // Program.cs – תמצית ותפקיד הקובץ
@@ -132,6 +133,14 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddRazorPages();
+// הוספת שירות ה-Redis לפרויקט
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    // אנחנו אומרים לו לחפש שרת בשם "redis" (כמו שקראנו לו ב-Docker Compose)
+    options.Configuration = "redis:6379"; 
+    // שם סכמה כללי כדי שלא יתערבב עם אפליקציות אחרות
+    options.InstanceName = "MyApi_"; 
+});
 
 // הוספת CORS לאנגולר
 builder.Services.AddCors(options =>
@@ -153,16 +162,16 @@ var app = builder.Build();
 app.UseCustomExceptionHandling();
 app.UseRequestResponseLogging();
 
-if (app.Environment.IsDevelopment())
-{
+// if (app.Environment.IsDevelopment())
+// {
     app.UseSwagger();
     app.UseSwaggerUI();
-}
-else
-{
-    app.UseExceptionHandler("/Error");
-    app.UseHsts();
-}
+// }
+// else
+// {
+    // app.UseExceptionHandler("/Error");
+    // app.UseHsts();
+// }
 
 app.UseCors("AllowAngular");
 app.UseStaticFiles();
@@ -173,5 +182,24 @@ app.UseAuthorization();
 
 app.MapRazorPages();
 app.MapControllers();
+
+// קוד שמוודא שמיגרציות רצות אוטומטית כשהאפליקציה עולה
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<StoreContext>(); // שמי לב לשנות ל-DbContext שלך
+        if (context.Database.GetPendingMigrations().Any())
+        {
+            context.Database.Migrate();
+        }
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while migrating the database.");
+    }
+}
 
 app.Run();
